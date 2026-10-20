@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Delegation Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+  /* Layout: una mesa de trabajo centrada; las siete cartas son el único color fuerte, todo lo demás es tinta y papel frío */
+  :root {
+    --bg: #EDF0F5;
+    --surface: #FFFFFF;
+    --ink: #151A2C;
+    --muted: #5A637A;
+    --line: #D3D9E4;
+    --soft: #E2E7F2;
+    --accent: #3A3FC9;
+    --accent-ink: #FFFFFF;
+    --ok: #157A52; --ok-bg: #DDF3E8;
+    --mid: #9A5B07; --mid-bg: #FCEBCF;
+    --low: #B42850; --low-bg: #FBE1E8;
+    --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+    --font-body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1120; --surface: #161B2D; --ink: #ECEEF6; --muted: #9AA2B9; --line: #2A3149; --soft: #1E2440;
+      --accent: #8F95FF; --accent-ink: #0D1120;
+      --ok: #5FD3A0; --ok-bg: #12302A; --mid: #F2B95C; --mid-bg: #33280F; --low: #FF8AAA; --low-bg: #36182A;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1120; --surface: #161B2D; --ink: #ECEEF6; --muted: #9AA2B9; --line: #2A3149; --soft: #1E2440;
+    --accent: #8F95FF; --accent-ink: #0D1120;
+    --ok: #5FD3A0; --ok-bg: #12302A; --mid: #F2B95C; --mid-bg: #33280F; --low: #FF8AAA; --low-bg: #36182A;
+    color-scheme: dark;
+  }
+  html, body { background: var(--bg); color: var(--ink); }
+  body { font-family: var(--font-body); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .display { font-family: var(--font-display); letter-spacing: -0.02em; }
+  .mono { font-family: var(--font-mono); letter-spacing: 0.04em; }
+  h1, h2, h3 { text-wrap: balance; }
+  .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .measure { max-width: 65ch; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; border-radius: 999px; padding: 12px 22px; transition: transform .15s ease, background .15s ease, opacity .15s; }
+  .btn:active { transform: scale(.98); }
+  .btn-primary { background: var(--ink); color: var(--bg); }
+  .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn-ghost:hover { background: var(--soft); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  textarea, input, select { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; width: 100%; padding: 12px 14px; font: inherit; }
+  textarea:focus, input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+  .card { position: relative; border-radius: 16px; overflow: hidden; text-align: left; transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s, opacity .3s; box-shadow: 0 1px 0 rgba(0,0,0,.04); }
+  .card:hover { transform: translateY(-4px); }
+  .card.is-selected { transform: translateY(-10px) rotate(-1.5deg); box-shadow: 0 18px 40px -16px rgba(10,15,40,.55); }
+  .card.is-dim { opacity: .45; }
+  .card .num { font-family: var(--font-display); font-weight: 800; line-height: .85; letter-spacing: -0.04em; }
+  .card .ring { position: absolute; inset: 0; border-radius: 16px; box-shadow: inset 0 0 0 3px var(--ink); pointer-events: none; }
+
+  .fade-in { animation: fadeUp .45s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .bar-fill { transition: width .8s cubic-bezier(.2,.8,.2,1); }
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in { animation: none; }
+    .card, .bar-fill, .btn { transition: none; }
+    .card.is-selected { transform: none; }
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .header-band { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+</style>
+
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = {
+    corePlugins: { preflight: true },
+    theme: { extend: {
+      colors: { bg: 'var(--bg)', surface: 'var(--surface)', ink: 'var(--ink)', muted: 'var(--muted)', line: 'var(--line)', soft: 'var(--soft)', accent: 'var(--accent)' }
+    } }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+
+</head>
+<body>
+<div id="root">
+  <div class="wrap" style="padding-block:64px;max-width:720px;margin:0 auto">
+    <p class="eyebrow">Delegation Lab</p>
+    <h1 class="display" style="font-size:40px;font-weight:800;margin:8px 0">El arte de liderar sin cargarlo todo</h1>
+    <p style="color:var(--muted)">Preparando el simulador…</p>
+  </div>
+</div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ============================================================
+   1. MODELO: los siete niveles (comunes a todos los casos)
+   ============================================================ */
+const LEVELS = [
+  { n: 1, name: 'Decir',     short: 'Yo decido y lo comunico.',
+    long: 'Tomas la decisión y la comunicas. Útil ante urgencias reales o riesgos graves.',
+    voice: '«Esto es lo que vamos a hacer.»', color: '#D23768', fg: '#FFFFFF' },
+  { n: 2, name: 'Vender',    short: 'Yo decido y explico por qué.',
+    long: 'Decides tú y explicas tus razones para lograr comprensión y compromiso.',
+    voice: '«Lo decidí así, y te cuento por qué.»', color: '#E2553A', fg: '#FFFFFF' },
+  { n: 3, name: 'Consultar', short: 'Escucho, pero decido yo.',
+    long: 'Pides la opinión del equipo antes de decidir. La decisión final sigue siendo tuya.',
+    voice: '«Quiero tu análisis antes de decidir.»', color: '#F0A126', fg: '#1E1503' },
+  { n: 4, name: 'Acordar',   short: 'Decidimos en conjunto.',
+    long: 'La decisión se toma conjuntamente. Ninguna de las partes decide sola.',
+    voice: '«Lo decidimos entre las dos.»', color: '#C8BC2E', fg: '#1C1A03' },
+  { n: 5, name: 'Aconsejar', short: 'El equipo decide tras mi consejo.',
+    long: 'El equipo decide después de escuchar tus recomendaciones. Tú aportas criterio, no la decisión.',
+    voice: '«Te doy mi punto de vista; la decisión es tuya.»', color: '#1E9A69', fg: '#FFFFFF' },
+  { n: 6, name: 'Preguntar', short: 'El equipo decide y me informa.',
+    long: 'El equipo decide y después te informa o responde a tus preguntas.',
+    voice: '«Decide y luego cuéntame cómo lo pensaste.»', color: '#1B80C4', fg: '#FFFFFF' },
+  { n: 7, name: 'Delegar',   short: 'Autonomía completa, con límites.',
+    long: 'El equipo decide con autonomía completa dentro de límites acordados previamente.',
+    voice: '«Es tu decisión, dentro de los límites que acordamos.»', color: '#5A4ED6', fg: '#FFFFFF' },
+];
+const levelBy = n => LEVELS.find(l => l.n === n);
+
+/* ============================================================
+   2. ESCENARIOS: para añadir un caso nuevo, añade un objeto aquí
+   ============================================================ */
+const SCENARIOS = [
+  {
+    id: 'reclutamiento-finalistas',
+    code: 'Caso 01',
+    area: 'Reclutamiento',
+    title: 'El proceso de reclutamiento que no avanza',
+    time: '11:30',
+    context: [
+      'Estás liderando temporalmente la reorganización del área de People.',
+      'Hoy tienes seis reuniones, una propuesta de estructura organizacional pendiente para el CEO y varios asuntos estratégicos abiertos.',
+    ],
+    agenda: ['6 reuniones hoy', 'Propuesta de estructura para el CEO', 'Asuntos estratégicos abiertos'],
+    message: {
+      from: 'Colaboradora · Reclutamiento',
+      text: 'Karla, tenemos tres candidatos finalistas para una posición importante, pero no sé cuál recomendar. ¿Puedes revisar los perfiles, compararlos y decirme cuál presentamos al cliente?',
+    },
+    pattern: [
+      'Conoces el proceso, sabes analizar perfiles y probablemente podrías resolverlo rápido.',
+      'Pero llevas varias semanas interviniendo en decisiones parecidas. Tu colaboradora todavía depende mucho de tu criterio.',
+    ],
+    prompt: 'Tienes cinco minutos antes de tu próxima reunión. ¿Qué nivel de delegación utilizarías para responder a esta situación?',
+    recommended: 5,
+    alsoReasonable: [3, 4],
+    recommendation: 'En este caso, Aconsejar suele ser una opción especialmente útil si tu colaboradora tiene la información y criterios básicos para evaluar candidatos: ella analiza, compara y recomienda; tú contrastas los puntos críticos antes de avanzar. Consultar o Acordar también pueden ser apropiados si la posición tiene un riesgo alto, si hay aprobaciones que no dependen de ella, o si todavía no domina los criterios de evaluación.',
+    levelFeedback: {
+      1: { fit: 'bajo', reading: 'Resuelves rápido y con tu estándar de calidad, pero la decisión vuelve a pasar por ti.',
+           pros: ['El cliente recibe una recomendación hoy, con tu criterio.', 'Controlas por completo el riesgo de esta posición.'],
+           risks: ['Refuerzas la dependencia que llevas semanas observando.', 'Tu colaboradora recibe una respuesta, pero no un método.', 'Restas tiempo a la reorganización y a la propuesta para el CEO.'],
+           when: 'Tiene sentido ante una urgencia real (el cliente espera en una hora), un error con impacto grave o una persona recién llegada que aún no conoce el perfil.' },
+      2: { fit: 'bajo', reading: 'Decides tú, pero explicas tu razonamiento. Ella aprende algo de tus criterios, aunque sigue sin practicarlos.',
+           pros: ['Hace visibles tus criterios de evaluación.', 'Genera comprensión y compromiso con la elección.'],
+           risks: ['Aprende a escuchar tu análisis, no a hacer el suyo.', 'Explicar bien requiere un tiempo que hoy no tienes.', 'La próxima vez volverá a esperar tu decisión.'],
+           when: 'Útil la primera vez que alguien se enfrenta a este tipo de decisión y necesitas modelar el razonamiento completo.' },
+      3: { fit: 'medio', reading: 'Le pides su análisis antes de decidir tú. La obligas a pensar y conservas el control en una posición importante.',
+           pros: ['Ella hace el trabajo de comparación.', 'Tú mantienes la decisión final si el riesgo es alto.', 'Descubres cuánto criterio tiene realmente.'],
+           risks: ['Si siempre decides tú al final, puede dejar de esforzarse en su análisis.', 'Sigues siendo el cuello de botella del proceso.'],
+           when: 'Apropiado si la posición es crítica para el cliente, hay restricciones de aprobación o ella todavía no domina los criterios.' },
+      4: { fit: 'medio', reading: 'Deciden juntas. Es un buen espacio para calibrar criterios, aunque exige tiempo compartido.',
+           pros: ['Los criterios se hacen explícitos y compartidos.', 'Ella participa de verdad en la decisión.', 'Permite corregir sobre la marcha.'],
+           risks: ['Hoy tienes cinco minutos y seis reuniones: acordar puede retrasar el proceso.', 'La responsabilidad puede diluirse entre las dos.'],
+           when: 'Útil si el riesgo es alto y quieres calibrar criterios con ella una o dos veces antes de soltar más.' },
+      5: { fit: 'alto', reading: 'Ella decide después de escuchar tu consejo. Hace el análisis, tú aportas criterio en los puntos críticos.',
+           pros: ['Desarrolla criterio propio con tu respaldo.', 'Te pide poco tiempo: revisar, no resolver.', 'Mantienes el control del riesgo sin ejecutar tú la tarea.'],
+           risks: ['Si no tiene criterios básicos, tu consejo se convierte en una decisión encubierta.', 'Necesita estructura: qué comparar y con qué criterios.'],
+           when: 'Funciona mejor si tiene la información de los candidatos y criterios básicos de evaluación. Pídele una recomendación por escrito, no solo dudas.' },
+      6: { fit: 'bajo', reading: 'Ella decide y después te informa. Es una señal fuerte de confianza, quizá un salto demasiado grande desde donde está hoy.',
+           pros: ['Máxima agilidad para el proceso.', 'Liberas tu agenda de inmediato.'],
+           risks: ['Lleva semanas dependiendo de tu criterio: el salto puede generarle inseguridad.', 'Si se equivoca en una posición importante, el coste lo asume el cliente.', 'Te enteras del resultado cuando ya no puedes ajustar nada.'],
+           when: 'Podría funcionar si ya demostró buen criterio en procesos similares y el cliente tolera cierto margen de error.' },
+      7: { fit: 'bajo', reading: 'Autonomía completa. Pero delegar requiere límites acordados previamente, y aquí todavía no existen.',
+           pros: ['Comunica plena confianza.', 'A largo plazo, es el nivel que libera más capacidad del equipo.'],
+           risks: ['Sin límites claros, la autonomía se parece al abandono.', 'Ella pidió ayuda: delegar ahora puede leerse como falta de apoyo.', 'Posibles errores o retrabajos frente al cliente.'],
+           when: 'Tiene sentido con límites claros (perfil, rango salarial, criterios del cliente) y un historial de aciertos en decisiones parecidas.' },
+    },
+    responses: [
+      { id: 'A', level: 1, tag: 'Lo resuelvo yo',
+        text: 'Envíame los perfiles. Yo los reviso y te digo cuál elegir.',
+        consequences: ['El candidato sale hoy, con tu criterio.', 'Ella recibe una respuesta, pero no un método para la próxima vez.', 'Tu agenda absorbe 30 o 45 minutos que no tenías.'],
+        later: { title: 'Te siguen llegando las mismas preguntas',
+          story: 'El cliente recibió una buena terna. En los días siguientes te llegan dos consultas parecidas de reclutamiento: «¿Puedes mirar estos perfiles?». Tu colaboradora sigue esperando tu visto bueno antes de avanzar, y la propuesta para el CEO se ha retrasado un par de días.',
+          signals: { autonomia: 20, carga: 85, riesgo: 20, agilidad: 50 } } },
+      { id: 'B', level: 5, tag: 'Acompaño su criterio',
+        text: 'Envíame tu comparación de los tres candidatos, los criterios utilizados y tu recomendación. Revisamos juntos los puntos críticos.',
+        consequences: ['Ella invierte tiempo en estructurar su análisis.', 'Tú revisas en 15 minutos solo lo que importa.', 'Es posible que la primera comparación llegue incompleta: forma parte del aprendizaje.'],
+        later: { title: 'Empieza a llegar con la propuesta hecha',
+          story: 'En el siguiente proceso, tu colaboradora te envía directamente su comparación y su recomendación. Sus preguntas son más precisas: ya no «¿cuál elijo?», sino «¿le doy más peso a la experiencia o a la estabilidad?». Esto se sostiene si cumples con la revisión que prometiste.',
+          signals: { autonomia: 65, carga: 40, riesgo: 30, agilidad: 70 } } },
+      { id: 'C', level: 6, tag: 'Suelto sin preparar',
+        text: 'Decide tú cuál presentar y después me cuentas cómo te fue.',
+        consequences: ['Liberas tiempo inmediatamente.', 'Ella puede sentirse respaldada… o sola con una decisión importante.', 'Aumenta la probabilidad de presentar un candidato que no encaja.'],
+        later: { title: 'El resultado depende de algo que no comprobaste',
+          story: 'Pueden ocurrir dos cosas. Si acierta, gana confianza rápidamente. Si el cliente rechaza al candidato, aparecen retrabajos, una conversación incómoda con el cliente y, probablemente, una colaboradora que vuelve a consultarte todo con más inseguridad que antes.',
+          signals: { autonomia: 50, carga: 30, riesgo: 70, agilidad: 80 } } },
+      { id: 'D', level: null, tag: 'Lo pospongo',
+        text: 'Esperemos a que yo tenga tiempo y lo revisamos.',
+        consequences: ['El proceso queda detenido mientras tu agenda se libera.', 'Los finalistas pueden aceptar otras ofertas.', 'El equipo recibe un mensaje implícito: nada avanza sin ti.'],
+        later: { title: 'El proceso se enfrió',
+          story: 'Pasaron cuatro días hasta que encontraste un hueco. Uno de los finalistas aceptó otra oferta y el cliente preguntó dos veces por el estado del proceso. Tu colaboradora aprendió a esperar, no a decidir.',
+          signals: { autonomia: 10, carga: 75, riesgo: 55, agilidad: 15 } } },
+    ],
+    reflections: [
+      '¿Qué parte de esta decisión realmente necesitaba tu experiencia?',
+      '¿Qué habría aprendido tu colaboradora si tú hubieras resuelto todo?',
+      '¿Qué tendrías que enseñarle hoy para que mañana necesite menos de ti?',
+    ],
+    closing: 'Tu trabajo como líder no es convertirte en la respuesta a todas las preguntas. Es desarrollar personas capaces de encontrar cada vez más respuestas.',
+  },
+];
+
+const UPCOMING = [
+  { code: 'Caso 02', area: 'Nómina', title: 'Una colaboradora muy competente en ejecución' },
+];
+
+/* Lectura de la justificación: pistas por palabras clave */
+const CUES = [
+  { re: /tiempo|r[aá]pid|urgen|prisa|minuto|agenda|reuni/i,
+    text: 'Mencionas el tiempo. Es un factor real hoy. Conviene distinguir entre lo urgente para ti y lo urgente para el proceso: ¿el cliente necesita la respuesta en minutos o en horas?' },
+  { re: /aprend|desarroll|crec|autonom|criterio|confian|ense[nñ]/i,
+    text: 'Pones el foco en su desarrollo. Esa intención se sostiene si la conviertes en una estructura concreta: qué debe analizar, con qué criterios y cuándo lo revisan.' },
+  { re: /riesgo|cliente|importante|cr[ií]tic|error|calidad|equivoc/i,
+    text: 'Te preocupa el riesgo para el cliente, y es legítimo. La pregunta útil es qué parte concreta del riesgo necesita tu revisión y cuál puede asumir ella.' },
+  { re: /depend|siempre|otra vez|semanas|costumbre|patr[oó]n/i,
+    text: 'Notas el patrón de dependencia. Reconocerlo es el primer paso: cada vez que resuelves por ella, el patrón se refuerza un poco.' },
+  { re: /no sabe|no puede|no est[aá] lista|inexpert|junior|supervis|nueva/i,
+    text: 'Dudas de su preparación. Antes de decidir por ella, puedes comprobarlo: pedirle su análisis te dará esa información en diez minutos.' },
+];
+
+const FIT = {
+  alto:  { label: 'Encaje alto en este contexto', color: 'var(--ok)', bg: 'var(--ok-bg)' },
+  medio: { label: 'Encaje posible, con condiciones', color: 'var(--mid)', bg: 'var(--mid-bg)' },
+  bajo:  { label: 'Encaje bajo en este contexto', color: 'var(--low)', bg: 'var(--low-bg)' },
+};
+
+const STEPS = [
+  { id: 'welcome', label: 'Inicio' },
+  { id: 'levels', label: 'Niveles' },
+  { id: 'case', label: 'Caso' },
+  { id: 'choose', label: 'Tu nivel' },
+  { id: 'why', label: 'Por qué' },
+  { id: 'feedback', label: 'Lectura' },
+  { id: 'reply', label: 'Respuesta' },
+  { id: 'later', label: '2 semanas' },
+  { id: 'reflect', label: 'Reflexión' },
+  { id: 'commit', label: 'Compromiso' },
+  { id: 'summary', label: 'Resumen' },
+];
+
+/* ============================================================
+   3. PERSISTENCIA LOCAL
+   ============================================================ */
+const STORE_KEY = 'delegation-lab:v1';
+const freshState = (scenarioId = SCENARIOS[0].id) => ({
+  step: 0, scenarioId, level: null, justification: '', response: null,
+  reflections: ['', '', ''], closingShown: false,
+  commitment: { stop: '', autonomy: '', level: '', levelNote: '', review: '' },
+  updatedAt: null,
+});
+function loadState() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return { ...freshState(), ...JSON.parse(raw) }; } catch (e) {}
+  return freshState();
+}
+function saveState(s) { try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); return true; } catch (e) { return false; } }
+
+/* ============================================================
+   4. PIEZAS VISUALES
+   ============================================================ */
+// Balanza de decisión: el círculo de Karla se reduce y el del equipo crece de 1 a 7
+function BalanceGlyph({ n, fg = '#fff', size = 1 }) {
+  const t = (n - 1) / 6;
+  const rL = 22 - t * 14, rE = 8 + t * 14;
+  return (
+    <svg viewBox="0 0 120 56" width={120 * size} height={56 * size} aria-hidden="true">
+      <line x1="10" y1="50" x2="110" y2="50" stroke={fg} strokeOpacity=".35" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="36" cy={50 - rL} r={rL} fill={fg} />
+      <circle cx="86" cy={50 - rE} r={rE} fill="none" stroke={fg} strokeWidth="3" />
+      <circle cx={86 - rE * 0.38} cy={50 - rE * 1.05} r={Math.max(1.8, rE * 0.16)} fill={fg} />
+      <circle cx={86 + rE * 0.38} cy={50 - rE * 1.05} r={Math.max(1.8, rE * 0.16)} fill={fg} />
+      <circle cx="86" cy={50 - rE * 0.6} r={Math.max(1.8, rE * 0.16)} fill={fg} />
+    </svg>
+  );
+}
+
+function DecisionMeter({ n, fg }) {
+  const pct = ((n - 1) / 6) * 100;
+  return (
+    <div>
+      <div style={{ height: 6, borderRadius: 99, background: 'rgba(255,255,255,.28)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${100 - pct}%`, background: fg, opacity: .9, borderRadius: 99 }} />
+      </div>
+      <div className="mono flex justify-between" style={{ fontSize: 10, marginTop: 5, opacity: .85, textTransform: 'uppercase' }}>
+        <span>Líder</span><span>Equipo</span>
+      </div>
+    </div>
+  );
+}
+
+function LevelCard({ level, selected, dimmed, onClick, showVoice = true, compact = false }) {
+  const interactive = !!onClick;
+  const Tag = interactive ? 'button' : 'div';
+  return (
+    <Tag
+      type={interactive ? 'button' : undefined}
+      onClick={onClick}
+      aria-pressed={interactive ? !!selected : undefined}
+      aria-label={interactive ? `Nivel ${level.n}: ${level.name}. ${level.short}` : undefined}
+      className={`card w-full ${selected ? 'is-selected' : ''} ${dimmed ? 'is-dim' : ''}`}
+      style={{ background: level.color, color: level.fg, minHeight: compact ? 0 : 236, cursor: interactive ? 'pointer' : 'default' }}
+    >
+      <div className="flex flex-col h-full" style={{ padding: compact ? 14 : 16, gap: compact ? 8 : 12, minHeight: 'inherit' }}>
+        <div className="flex items-start justify-between gap-2">
+          <span className="num" style={{ fontSize: compact ? 44 : 64 }}>{level.n}</span>
+          <BalanceGlyph n={level.n} fg={level.fg} size={compact ? 0.55 : 0.7} />
+        </div>
+        <div className="display" style={{ fontSize: compact ? 20 : 24, fontWeight: 800, lineHeight: 1.05 }}>{level.name}</div>
+        {!compact && <div style={{ fontSize: 14, lineHeight: 1.35, opacity: .95 }}>{level.short}</div>}
+        {showVoice && !compact && <div style={{ fontSize: 13, fontStyle: 'italic', opacity: .85, lineHeight: 1.35 }}>{level.voice}</div>}
+        <div style={{ marginTop: 'auto' }}><DecisionMeter n={level.n} fg={level.fg} /></div>
+      </div>
+      {selected && <span className="ring" />}
+    </Tag>
+  );
+}
+
+function FitBadge({ fit }) {
+  const f = FIT[fit];
+  return (
+    <span className="inline-flex items-center gap-2" style={{ background: f.bg, color: f.color, borderRadius: 999, padding: '6px 12px', fontSize: 13, fontWeight: 600 }}>
+      <span style={{ width: 8, height: 8, borderRadius: 99, background: f.color }} /> {f.label}
+    </span>
+  );
+}
+
+function Spectrum() {
+  return (
+    <div className="flex items-end gap-1 sm:gap-2" aria-hidden="true">
+      {LEVELS.map(l => (
+        <div key={l.n} className="flex flex-col items-center gap-1" style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ background: l.color, borderRadius: 12, padding: '10px 4px 6px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <BalanceGlyph n={l.n} fg={l.fg} size={0.45} />
+          </div>
+          <span className="mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{l.n}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Nav({ onBack, onNext, nextLabel = 'Continuar', disabled, hint }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-6 mt-8" style={{ borderTop: '1px solid var(--line)' }}>
+      {onBack ? <button type="button" className="btn btn-ghost" onClick={onBack}>← Atrás</button> : <span />}
+      <div className="flex items-center gap-3 flex-wrap justify-end">
+        {hint && <span style={{ fontSize: 13, color: 'var(--muted)' }}>{hint}</span>}
+        {onNext && <button type="button" className="btn btn-primary" onClick={onNext} disabled={disabled}>{nextLabel} →</button>}
+      </div>
+    </div>
+  );
+}
+
+function Signal({ label, value, invert }) {
+  // invert: valores altos son preocupantes
+  const word = value >= 66 ? 'Alta' : value >= 36 ? 'Media' : 'Baja';
+  const good = invert ? value < 36 : value >= 66;
+  const bad = invert ? value >= 66 : value < 36;
+  const color = good ? 'var(--ok)' : bad ? 'var(--low)' : 'var(--mid)';
+  const [w, setW] = useState(0);
+  useEffect(() => { const id = requestAnimationFrame(() => setW(value)); return () => cancelAnimationFrame(id); }, [value]);
+  return (
+    <div>
+      <div className="flex justify-between items-baseline gap-2" style={{ fontSize: 14 }}>
+        <span>{label}</span><span style={{ color, fontWeight: 600 }}>{word}</span>
+      </div>
+      <div style={{ height: 8, borderRadius: 99, background: 'var(--soft)', marginTop: 6, overflow: 'hidden' }}>
+        <div className="bar-fill" style={{ height: '100%', width: `${w}%`, background: color, borderRadius: 99 }} />
+      </div>
+    </div>
+  );
+}
+
+function Countdown() {
+  const [s, setS] = useState(300);
+  useEffect(() => { const id = setInterval(() => setS(v => (v > 0 ? v - 1 : 0)), 1000); return () => clearInterval(id); }, []);
+  const mm = String(Math.floor(s / 60)).padStart(2, '0'), ss = String(s % 60).padStart(2, '0');
+  return (
+    <div className="flex items-center gap-3">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="16" fill="none" stroke="var(--line)" strokeWidth="4" />
+        <circle cx="20" cy="20" r="16" fill="none" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round"
+          strokeDasharray={2 * Math.PI * 16} strokeDashoffset={2 * Math.PI * 16 * (1 - s / 300)} transform="rotate(-90 20 20)" />
+      </svg>
+      <div>
+        <div className="mono tnum" style={{ fontSize: 20 }}>{mm}:{ss}</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)' }}>{s > 0 ? 'para tu próxima reunión' : 'Empieza la reunión. Puedes seguir pensando.'}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   5. PANTALLAS
+   ============================================================ */
+function Welcome({ go, scenario, hasProgress, resume }) {
+  return (
+    <div className="fade-in grid gap-10">
+      <section className="grid gap-6">
+        <p className="eyebrow">Sesión de coaching · Delegation Poker</p>
+        <h1 className="display" style={{ fontSize: 'clamp(40px, 7vw, 76px)', fontWeight: 800, lineHeight: .98 }}>
+          Hola, Karla.<br /><span style={{ color: 'var(--muted)' }}>Hoy practicamos soltar con criterio.</span>
+        </h1>
+        <p className="measure" style={{ fontSize: 18, color: 'var(--muted)' }}>
+          Eres resolutiva, exigente con la calidad y estás acostumbrada a intervenir para que las cosas funcionen. Ahora lideras más, y eso cambia la pregunta: no es si puedes resolverlo tú, sino si te corresponde.
+        </p>
+        <Spectrum />
+      </section>
+
+      <section className="grid gap-4 sm:grid-cols-3">
+        {[
+          ['Reclutamiento', 'Percibes que el equipo necesita bastante supervisión.'],
+          ['Nómina', 'Cuentas con una colaboradora muy competente en ejecución.'],
+          ['People', 'Lideras temporalmente la reorganización del área.'],
+        ].map(([t, d]) => (
+          <div key={t} className="panel p-5">
+            <p className="eyebrow">{t}</p>
+            <p style={{ marginTop: 8 }}>{d}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-3">
+        <p className="eyebrow">Lo que vas a practicar</p>
+        <ul className="grid gap-2 sm:grid-cols-2" style={{ fontSize: 15 }}>
+          {['Delegar no es abandonar responsabilidades.', 'No todo requiere tu intervención directa.', 'El nivel depende de la tarea, la persona y el contexto.', 'Puedes responder por los resultados sin ejecutarlo todo.', 'Desarrollar autonomía en tu equipo es parte de tu trabajo.'].map(x => (
+            <li key={x} className="flex gap-3"><span style={{ color: 'var(--accent)', fontWeight: 700 }}>—</span><span>{x}</span></li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="grid gap-3">
+        <p className="eyebrow">Casos</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="panel p-5" style={{ borderColor: 'var(--ink)' }}>
+            <p className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>{scenario.code} · {scenario.area}</p>
+            <p className="display" style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{scenario.title}</p>
+          </div>
+          {UPCOMING.map(u => (
+            <div key={u.code} className="panel p-5" style={{ borderStyle: 'dashed', background: 'transparent' }}>
+              <p className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>{u.code} · {u.area} · Próximamente</p>
+              <p className="display" style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: 'var(--muted)' }}>{u.title}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="flex flex-wrap gap-3">
+        <button type="button" className="btn btn-primary" onClick={() => go(1)}>Empezar la sesión →</button>
+        {hasProgress && <button type="button" className="btn btn-ghost" onClick={resume}>Continuar donde lo dejé</button>}
+      </div>
+    </div>
+  );
+}
+
+function Levels({ go }) {
+  const [open, setOpen] = useState(null);
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">Los siete niveles</p>
+        <h2 className="display" style={{ fontSize: 'clamp(30px, 5vw, 48px)', fontWeight: 800, lineHeight: 1.02 }}>¿Quién decide, y cuánto?</h2>
+        <p className="measure" style={{ color: 'var(--muted)', fontSize: 17 }}>
+          Cada carta indica cuánto de la decisión queda en tus manos y cuánto en las del equipo. Ningún nivel es mejor que otro: el adecuado depende de la tarea, de la persona y del contexto. Toca una carta para leer su descripción completa.
+        </p>
+      </header>
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
+        {LEVELS.map(l => (
+          <LevelCard key={l.n} level={l} selected={open === l.n} onClick={() => setOpen(open === l.n ? null : l.n)} />
+        ))}
+      </div>
+      <div className="panel p-5" style={{ minHeight: 92 }} aria-live="polite">
+        {open ? (
+          <div className="fade-in flex flex-wrap items-baseline gap-x-4 gap-y-1" key={open}>
+            <span className="display" style={{ fontSize: 22, fontWeight: 800, color: levelBy(open).color }}>{open} · {levelBy(open).name}</span>
+            <span style={{ fontSize: 16 }}>{levelBy(open).long}</span>
+          </div>
+        ) : (
+          <p style={{ color: 'var(--muted)' }}>La barra inferior de cada carta muestra el reparto: a la izquierda, lo que decides tú; a la derecha, lo que decide el equipo.</p>
+        )}
+      </div>
+      <Nav onBack={() => go(0)} onNext={() => go(2)} nextLabel="Ver el caso" />
+    </div>
+  );
+}
+
+function CaseScreen({ go, sc }) {
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">{sc.code} · {sc.area}</p>
+        <h2 className="display" style={{ fontSize: 'clamp(30px, 5vw, 52px)', fontWeight: 800, lineHeight: 1.02 }}>{sc.title}</h2>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3 grid gap-5" style={{ minWidth: 0 }}>
+          <div className="flex items-baseline gap-3">
+            <span className="display tnum" style={{ fontSize: 56, fontWeight: 800, lineHeight: 1 }}>{sc.time}</span>
+            <span style={{ color: 'var(--muted)' }}>de la mañana</span>
+          </div>
+          {sc.context.map(p => <p key={p} className="measure" style={{ fontSize: 17 }}>{p}</p>)}
+          <div className="flex flex-wrap gap-2">
+            {sc.agenda.map(a => (
+              <span key={a} style={{ background: 'var(--soft)', borderRadius: 999, padding: '6px 12px', fontSize: 13 }}>{a}</span>
+            ))}
+          </div>
+          {sc.pattern.map(p => <p key={p} className="measure" style={{ fontSize: 17, color: 'var(--muted)' }}>{p}</p>)}
+        </div>
+
+        <div className="lg:col-span-2 grid gap-4 content-start" style={{ minWidth: 0 }}>
+          <div className="panel p-5 grid gap-3">
+            <div className="flex items-center gap-3">
+              <span aria-hidden="true" style={{ width: 36, height: 36, borderRadius: 99, background: 'var(--soft)', display: 'grid', placeItems: 'center', fontWeight: 700, color: 'var(--muted)' }}>R</span>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{sc.message.from}</div>
+                <div className="mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{sc.time} · mensaje directo</div>
+              </div>
+            </div>
+            <p style={{ background: 'var(--soft)', borderRadius: '4px 16px 16px 16px', padding: '14px 16px', fontSize: 16 }}>{sc.message.text}</p>
+          </div>
+          <div className="panel p-5"><Countdown /></div>
+        </div>
+      </div>
+
+      <div className="panel p-6" style={{ background: 'var(--ink)', color: 'var(--bg)', borderColor: 'var(--ink)' }}>
+        <p className="display" style={{ fontSize: 'clamp(20px, 3vw, 28px)', fontWeight: 700, lineHeight: 1.2 }}>{sc.prompt}</p>
+      </div>
+      <Nav onBack={() => go(1)} onNext={() => go(3)} nextLabel="Elegir mi carta" />
+    </div>
+  );
+}
+
+function Choose({ go, sc, state, set }) {
+  const sel = state.level;
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">Tu decisión</p>
+        <h2 className="display" style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 800, lineHeight: 1.05 }}>Pon una carta sobre la mesa.</h2>
+        <p className="measure" style={{ color: 'var(--muted)' }}>«{sc.message.text}»</p>
+      </header>
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 lg:grid-cols-7" role="group" aria-label="Niveles de delegación">
+        {LEVELS.map(l => (
+          <LevelCard key={l.n} level={l} selected={sel === l.n} dimmed={sel && sel !== l.n} onClick={() => set({ level: l.n })} />
+        ))}
+      </div>
+      <Nav onBack={() => go(2)} onNext={() => go(4)} disabled={!sel}
+        nextLabel={sel ? `Elegir nivel ${sel} · ${levelBy(sel).name}` : 'Elige una carta'}
+        hint={!sel ? 'Aún no hay carta elegida' : null} />
+    </div>
+  );
+}
+
+function Why({ go, state, set }) {
+  const lv = levelBy(state.level);
+  const ok = state.justification.trim().length >= 3;
+  return (
+    <div className="fade-in grid gap-8">
+      <div className="grid gap-6 md:grid-cols-3 items-start">
+        <div style={{ maxWidth: 220 }}><LevelCard level={lv} selected /></div>
+        <div className="md:col-span-2 grid gap-4" style={{ minWidth: 0 }}>
+          <p className="eyebrow">Nivel {lv.n} · {lv.name}</p>
+          <h2 className="display" style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 800, lineHeight: 1.05 }}>¿Por qué elegiste ese nivel?</h2>
+          <p style={{ color: 'var(--muted)' }}>Escribe como lo pensarías en voz alta. Piensa en la tarea, en tu colaboradora y en el contexto de hoy.</p>
+          <label htmlFor="why" className="sr-only">Tu justificación</label>
+          <textarea id="why" rows={6} value={state.justification} placeholder="Elegí este nivel porque…"
+            onChange={e => set({ justification: e.target.value })} />
+        </div>
+      </div>
+      <Nav onBack={() => go(3)} onNext={() => go(5)} disabled={!ok} nextLabel="Ver la lectura" hint={!ok ? 'Escribe al menos una frase' : null} />
+    </div>
+  );
+}
+
+function Feedback({ go, sc, state }) {
+  const lv = levelBy(state.level);
+  const fb = sc.levelFeedback[lv.n];
+  const cues = CUES.filter(c => c.re.test(state.justification));
+  const rec = levelBy(sc.recommended);
+  const isRec = lv.n === sc.recommended;
+  const isAlt = sc.alsoReasonable.includes(lv.n);
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-4">
+        <p className="eyebrow">Lectura de tu elección</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="display" style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 800, lineHeight: 1.05 }}>
+            <span style={{ color: lv.color }}>{lv.n}</span> · {lv.name}
+          </h2>
+          <FitBadge fit={fb.fit} />
+        </div>
+        <p className="measure" style={{ fontSize: 18 }}>{fb.reading}</p>
+      </header>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="panel p-5 grid gap-3 content-start">
+          <p className="eyebrow" style={{ color: 'var(--ok)' }}>Lo que te aporta</p>
+          <ul className="grid gap-2">{fb.pros.map(p => <li key={p} className="flex gap-3"><span style={{ color: 'var(--ok)' }}>+</span><span>{p}</span></li>)}</ul>
+        </div>
+        <div className="panel p-5 grid gap-3 content-start">
+          <p className="eyebrow" style={{ color: 'var(--low)' }}>Lo que arriesgas</p>
+          <ul className="grid gap-2">{fb.risks.map(p => <li key={p} className="flex gap-3"><span style={{ color: 'var(--low)' }}>!</span><span>{p}</span></li>)}</ul>
+        </div>
+      </div>
+      <div className="panel p-5 grid gap-2">
+        <p className="eyebrow">Cuándo sería la mejor opción</p>
+        <p>{fb.when}</p>
+      </div>
+
+      <section className="grid gap-4">
+        <p className="eyebrow">Tu razonamiento</p>
+        <blockquote className="measure" style={{ borderLeft: `4px solid ${lv.color}`, paddingLeft: 16, fontStyle: 'italic', fontSize: 17 }}>{state.justification}</blockquote>
+        <div className="grid gap-3">
+          {(cues.length ? cues : [{ text: 'Tu razonamiento no menciona explícitamente a la persona, la tarea ni el riesgo. Prueba a revisarlo con esas tres lentes: ¿qué sabe hacer ella?, ¿qué está en juego?, ¿qué pide el momento?' }]).map(c => (
+            <p key={c.text} className="measure flex gap-3"><span style={{ color: 'var(--accent)', fontWeight: 700 }}>→</span><span>{c.text}</span></p>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel p-6 grid gap-5" style={{ borderColor: rec.color, borderWidth: 2 }}>
+        <div className="flex flex-wrap items-center gap-4">
+          <div style={{ width: 120 }}><LevelCard level={rec} compact /></div>
+          <div className="grid gap-1" style={{ minWidth: 0, flex: 1 }}>
+            <p className="eyebrow">Nivel sugerido para este caso</p>
+            <p className="display" style={{ fontSize: 26, fontWeight: 800 }}>{rec.n} · {rec.name}</p>
+            <p style={{ color: 'var(--muted)', fontSize: 14 }}>
+              {isRec ? 'Coincide con tu elección.' : isAlt ? `Tu elección (${lv.n}) también es razonable bajo ciertas condiciones.` : `También razonables: ${sc.alsoReasonable.map(n => `${n} · ${levelBy(n).name}`).join(' y ')}.`}
+            </p>
+          </div>
+        </div>
+        <p className="measure">{sc.recommendation}</p>
+        <p className="measure" style={{ color: 'var(--muted)', fontSize: 14 }}>El nivel 7 no es siempre el destino. Delegar bien consiste en calibrar autonomía y riesgo para cada decisión.</p>
+      </section>
+
+      <Nav onBack={() => go(4)} onNext={() => go(6)} nextLabel="¿Qué le responderías?" />
+    </div>
+  );
+}
+
+function Reply({ go, sc, state, set }) {
+  const chosen = sc.responses.find(r => r.id === state.response);
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">Del nivel a la frase</p>
+        <h2 className="display" style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 800, lineHeight: 1.05 }}>¿Qué le responderías?</h2>
+        <p className="measure" style={{ color: 'var(--muted)' }}>Tienes cinco minutos. Elige el mensaje que realmente enviarías.</p>
+      </header>
+      <div className="grid gap-3" role="radiogroup" aria-label="Respuestas posibles">
+        {sc.responses.map(r => {
+          const on = state.response === r.id;
+          return (
+            <button key={r.id} type="button" role="radio" aria-checked={on} onClick={() => set({ response: r.id })}
+              className="panel p-5 text-left flex gap-4 items-start"
+              style={{ borderColor: on ? 'var(--ink)' : 'var(--line)', borderWidth: on ? 2 : 1, transition: 'border-color .2s, transform .2s', transform: on ? 'translateX(4px)' : 'none' }}>
+              <span className="display" style={{ fontSize: 28, fontWeight: 800, width: 32, flexShrink: 0, color: on ? 'var(--ink)' : 'var(--muted)' }}>{r.id}</span>
+              <span style={{ fontSize: 17, minWidth: 0 }}>«{r.text}»</span>
+            </button>
+          );
+        })}
+      </div>
+      {chosen && (
+        <section className="panel p-6 grid gap-4 fade-in" key={chosen.id}>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="eyebrow">Consecuencias probables · {chosen.tag}</p>
+            {chosen.level && (
+              <span className="mono" style={{ fontSize: 12, background: levelBy(chosen.level).color, color: levelBy(chosen.level).fg, borderRadius: 999, padding: '3px 10px' }}>
+                Funciona como nivel {chosen.level} · {levelBy(chosen.level).name}
+              </span>
+            )}
+          </div>
+          <ul className="grid gap-2">{chosen.consequences.map(c => <li key={c} className="flex gap-3"><span style={{ color: 'var(--muted)' }}>·</span><span>{c}</span></li>)}</ul>
+          <p style={{ fontSize: 13, color: 'var(--muted)' }}>Son tendencias probables, no certezas: dependen de la persona y del cliente.</p>
+        </section>
+      )}
+      <Nav onBack={() => go(5)} onNext={() => go(7)} disabled={!chosen} nextLabel="Avanzar dos semanas" hint={!chosen ? 'Elige una respuesta' : null} />
+    </div>
+  );
+}
+
+function Later({ go, sc, state }) {
+  const r = sc.responses.find(x => x.id === state.response);
+  const best = sc.responses.find(x => x.level === sc.recommended);
+  const lv = levelBy(state.level);
+  let coherence = null;
+  if (r.level === null) {
+    coherence = `Elegiste el nivel ${lv.n} (${lv.name}), pero tu respuesta aplaza la decisión. Posponer no es un nivel de delegación: retiene la decisión sin tomarla.`;
+  } else if (Math.abs(r.level - lv.n) >= 2) {
+    coherence = r.level < lv.n
+      ? `Elegiste el nivel ${lv.n} (${lv.name}), pero tu respuesta funciona como nivel ${r.level}. Es un patrón frecuente en líderes resolutivos: la intención es delegar y la frase vuelve a centralizar.`
+      : `Elegiste el nivel ${lv.n} (${lv.name}), pero tu respuesta funciona como nivel ${r.level}. Diste más autonomía de la que pensabas dar: revisa si fue una decisión o una forma de liberar agenda.`;
+  } else {
+    coherence = `Tu respuesta es coherente con el nivel que elegiste (${lv.n} · ${lv.name}). Lo que decides y lo que dices van en la misma dirección.`;
+  }
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">Dos semanas después · Respuesta {r.id}</p>
+        <h2 className="display" style={{ fontSize: 'clamp(28px, 4.5vw, 48px)', fontWeight: 800, lineHeight: 1.04 }}>{r.later.title}</h2>
+        <p className="measure" style={{ fontSize: 18 }}>{r.later.story}</p>
+      </header>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="panel p-6 grid gap-5 content-start">
+          <p className="eyebrow">Tendencias en este escenario</p>
+          <Signal label="Autonomía de tu colaboradora" value={r.later.signals.autonomia} />
+          <Signal label="Tu carga operativa" value={r.later.signals.carga} invert />
+          <Signal label="Riesgo de error o retrabajo" value={r.later.signals.riesgo} invert />
+          <Signal label="Agilidad del proceso" value={r.later.signals.agilidad} />
+        </div>
+        <div className="grid gap-4 content-start">
+          <div className="panel p-5 grid gap-2">
+            <p className="eyebrow">Coherencia entre nivel y frase</p>
+            <p>{coherence}</p>
+          </div>
+          {r.id !== best.id && (
+            <div className="panel p-5 grid gap-2">
+              <p className="eyebrow">Una alternativa a considerar</p>
+              <p>«{best.text}»</p>
+              <p style={{ color: 'var(--muted)', fontSize: 14 }}>En este contexto suele ser la opción más equilibrada: promueve autonomía progresiva y criterio profesional, sin perder el control del riesgo.</p>
+            </div>
+          )}
+        </div>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--muted)' }}>Este es un escenario posible, no un resultado garantizado. Las personas y los clientes reaccionan de formas distintas.</p>
+      <Nav onBack={() => go(6)} onNext={() => go(8)} nextLabel="Reflexionar" />
+    </div>
+  );
+}
+
+function Reflect({ go, sc, state, set }) {
+  const upd = (i, v) => { const arr = [...state.reflections]; arr[i] = v; set({ reflections: arr }); };
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">Reflexión de coaching</p>
+        <h2 className="display" style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 800, lineHeight: 1.05 }}>Tres preguntas antes de cerrar.</h2>
+        <p style={{ color: 'var(--muted)' }}>Puedes responder por escrito o conversarlas en la sesión.</p>
+      </header>
+      <div className="grid gap-5">
+        {sc.reflections.map((q, i) => (
+          <div key={q} className="grid gap-2">
+            <label htmlFor={`ref-${i}`} className="display" style={{ fontSize: 21, fontWeight: 700 }}>
+              <span className="mono" style={{ fontSize: 13, color: 'var(--muted)', marginRight: 10 }}>{i + 1}/3</span>{q}
+            </label>
+            <textarea id={`ref-${i}`} rows={3} value={state.reflections[i]} onChange={e => upd(i, e.target.value)} />
+          </div>
+        ))}
+      </div>
+      {!state.closingShown ? (
+        <div><button type="button" className="btn btn-ghost" onClick={() => set({ closingShown: true })}>Mostrar la idea de cierre</button></div>
+      ) : (
+        <blockquote className="fade-in panel p-8" style={{ background: 'var(--ink)', color: 'var(--bg)', borderColor: 'var(--ink)' }}>
+          <p className="display" style={{ fontSize: 'clamp(22px, 3.4vw, 34px)', fontWeight: 700, lineHeight: 1.2 }}>«{sc.closing}»</p>
+        </blockquote>
+      )}
+      <Nav onBack={() => go(7)} onNext={() => go(9)} nextLabel="Definir mi compromiso" />
+    </div>
+  );
+}
+
+function Commit({ go, state, set }) {
+  const c = state.commitment;
+  const upd = (k, v) => set({ commitment: { ...c, [k]: v } });
+  const ok = c.stop.trim() && c.autonomy.trim() && c.level && c.review.trim();
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">Compromiso práctico</p>
+        <h2 className="display" style={{ fontSize: 'clamp(28px, 4.5vw, 44px)', fontWeight: 800, lineHeight: 1.05 }}>Esta semana, una cosa concreta.</h2>
+      </header>
+      <div className="grid gap-5 measure" style={{ maxWidth: 720 }}>
+        <div className="grid gap-2">
+          <label htmlFor="c-stop" style={{ fontWeight: 600 }}>Esta semana voy a dejar de resolver personalmente…</label>
+          <input id="c-stop" value={c.stop} onChange={e => upd('stop', e.target.value)} placeholder="p. ej., la selección de finalistas en procesos estándar" />
+        </div>
+        <div className="grid gap-2">
+          <label htmlFor="c-aut" style={{ fontWeight: 600 }}>Voy a desarrollar mayor autonomía en…</label>
+          <input id="c-aut" value={c.autonomy} onChange={e => upd('autonomy', e.target.value)} placeholder="p. ej., mi colaboradora de reclutamiento, al comparar candidatos" />
+        </div>
+        <div className="grid gap-2">
+          <label htmlFor="c-lvl" style={{ fontWeight: 600 }}>Para hacerlo, utilizaré el nivel de delegación…</label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select id="c-lvl" value={c.level} onChange={e => upd('level', e.target.value)}>
+              <option value="">Elige un nivel</option>
+              {LEVELS.map(l => <option key={l.n} value={l.n}>{l.n} · {l.name}</option>)}
+            </select>
+            <input id="c-lvl-note" value={c.levelNote} onChange={e => upd('levelNote', e.target.value)} placeholder="Matiz opcional" aria-label="Matiz sobre el nivel" />
+          </div>
+          {c.level && <div className="fade-in flex flex-wrap gap-2 items-center" key={c.level} style={{ fontSize: 14, color: 'var(--muted)' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: levelBy(+c.level).color }} />{levelBy(+c.level).long}
+          </div>}
+        </div>
+        <div className="grid gap-2">
+          <label htmlFor="c-rev" style={{ fontWeight: 600 }}>Revisaré los resultados mediante…</label>
+          <input id="c-rev" value={c.review} onChange={e => upd('review', e.target.value)} placeholder="p. ej., una revisión de 15 minutos los viernes" />
+        </div>
+      </div>
+      <Nav onBack={() => go(8)} onNext={() => go(10)} disabled={!ok} nextLabel="Ver mi resumen" hint={!ok ? 'Completa las cuatro frases' : null} />
+    </div>
+  );
+}
+
+function buildSummary(sc, s) {
+  const lv = s.level ? levelBy(s.level) : null;
+  const r = sc.responses.find(x => x.id === s.response);
+  const rec = levelBy(sc.recommended);
+  const cl = s.commitment.level ? levelBy(+s.commitment.level) : null;
+  const date = new Date(s.updatedAt || Date.now()).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  const lines = [
+    'DELEGATION LAB · El arte de liderar sin cargarlo todo',
+    `Sesión de Karla · ${date}`,
+    '',
+    `${sc.code}: ${sc.title}`,
+    '',
+    `Nivel elegido: ${lv ? `${lv.n} · ${lv.name}` : '—'}`,
+    `Por qué: ${s.justification || '—'}`,
+    `Nivel sugerido: ${rec.n} · ${rec.name} (también razonables: ${sc.alsoReasonable.join(' y ')})`,
+    '',
+    `Respuesta elegida: ${r ? `${r.id} · «${r.text}»` : '—'}`,
+    r ? `Escenario a dos semanas: ${r.later.title}` : '',
+    '',
+    'REFLEXIÓN',
+    ...sc.reflections.map((q, i) => `${i + 1}. ${q}\n   ${s.reflections[i] || '—'}`),
+    '',
+    'COMPROMISO',
+    `· Esta semana voy a dejar de resolver personalmente: ${s.commitment.stop || '—'}`,
+    `· Voy a desarrollar mayor autonomía en: ${s.commitment.autonomy || '—'}`,
+    `· Utilizaré el nivel de delegación: ${cl ? `${cl.n} · ${cl.name}` : '—'}${s.commitment.levelNote ? ` (${s.commitment.levelNote})` : ''}`,
+    `· Revisaré los resultados mediante: ${s.commitment.review || '—'}`,
+    '',
+    `«${sc.closing}»`,
+  ];
+  return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n');
+}
+
+function Summary({ go, sc, state, reset }) {
+  const text = useMemo(() => buildSummary(sc, state), [sc, state]);
+  const [msg, setMsg] = useState('');
+  const ta = useRef(null);
+  const lv = levelBy(state.level);
+  const cl = state.commitment.level ? levelBy(+state.commitment.level) : null;
+  const r = sc.responses.find(x => x.id === state.response);
+  const copy = () => {
+    const fallback = () => { if (ta.current) { ta.current.focus(); ta.current.select(); } setMsg('Texto seleccionado. Cópialo con Ctrl+C o Cmd+C.'); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => setMsg('Resumen copiado.'), fallback);
+      } else fallback();
+    } catch (e) { fallback(); }
+  };
+  return (
+    <div className="fade-in grid gap-8">
+      <header className="grid gap-3">
+        <p className="eyebrow">Resumen de la sesión</p>
+        <h2 className="display" style={{ fontSize: 'clamp(30px, 5vw, 52px)', fontWeight: 800, lineHeight: 1.02 }}>Tu mano, Karla.</h2>
+      </header>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-2"><p className="eyebrow">Elegiste</p><LevelCard level={lv} compact /></div>
+        <div className="grid gap-2"><p className="eyebrow">Sugerido</p><LevelCard level={levelBy(sc.recommended)} compact /></div>
+        <div className="grid gap-2"><p className="eyebrow">Te comprometes a</p>{cl ? <LevelCard level={cl} compact /> : <div className="panel p-4">—</div>}</div>
+      </div>
+      <div className="panel p-5 grid gap-1">
+        <p className="eyebrow">Tu respuesta</p>
+        <p style={{ fontSize: 17 }}>{r.id} · «{r.text}»</p>
+      </div>
+      <div className="panel p-5 grid gap-3">
+        <p className="eyebrow">Compromiso de la semana</p>
+        <ul className="grid gap-2">
+          <li><strong>Dejo de resolver:</strong> {state.commitment.stop}</li>
+          <li><strong>Desarrollo autonomía en:</strong> {state.commitment.autonomy}</li>
+          <li><strong>Nivel:</strong> {cl ? `${cl.n} · ${cl.name}` : '—'}{state.commitment.levelNote ? ` · ${state.commitment.levelNote}` : ''}</li>
+          <li><strong>Reviso mediante:</strong> {state.commitment.review}</li>
+        </ul>
+      </div>
+      <section className="grid gap-3">
+        <div className="flex flex-wrap items-center gap-3 justify-between">
+          <p className="eyebrow">Exportar</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span aria-live="polite" style={{ fontSize: 13, color: 'var(--ok)' }}>{msg}</span>
+            <button type="button" className="btn btn-primary" onClick={copy}>Copiar resumen</button>
+          </div>
+        </div>
+        <label htmlFor="summary-text" className="sr-only">Resumen en texto</label>
+        <textarea id="summary-text" ref={ta} readOnly rows={12} value={text} className="mono" style={{ fontSize: 13, lineHeight: 1.6 }} />
+        <p style={{ fontSize: 13, color: 'var(--muted)' }}>Tus respuestas se guardan en este navegador. Puedes pegar el resumen en un correo, en tus notas o en el documento de seguimiento del coaching.</p>
+      </section>
+      <div className="flex flex-wrap justify-between gap-3 pt-6" style={{ borderTop: '1px solid var(--line)' }}>
+        <button type="button" className="btn btn-ghost" onClick={() => go(9)}>← Atrás</button>
+        <button type="button" className="btn btn-ghost" onClick={reset}>Repetir el caso</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   6. APP
+   ============================================================ */
+function App() {
+  const [state, setState] = useState(loadState);
+  const [confirming, setConfirming] = useState(false);
+  const [pending, setPending] = useState(null);
+  const topRef = useRef(null);
+  const sc = SCENARIOS.find(s => s.id === state.scenarioId) || SCENARIOS[0];
+
+  useEffect(() => { saveState(state); }, [state]);
+
+  const set = patch => setState(s => ({ ...s, ...patch, updatedAt: Date.now() }));
+  const go = step => {
+    set({ step });
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { window.scrollTo(0, 0); }
+  };
+  const reset = () => { setState({ ...freshState(sc.id), step: 2 }); setConfirming(false); window.scrollTo(0, 0); };
+  const hardReset = () => { setState(freshState(sc.id)); setConfirming(false); window.scrollTo(0, 0); };
+
+  // Guardas: no permitir saltar pasos sin datos
+  let step = state.step;
+  if (step >= 4 && !state.level) step = 3;
+  if (step >= 5 && state.justification.trim().length < 3) step = 4;
+  if (step >= 7 && !state.response) step = 6;
+
+  const hasProgress = state.level || state.justification;
+  const resumeStep = (() => { if (state.response) return 7; if (state.justification) return 5; if (state.level) return 4; return 2; })();
+
+  const props = { go, sc, state, set };
+  const screens = [
+    <Welcome go={go} scenario={sc} hasProgress={hasProgress} resume={() => go(resumeStep)} />,
+    <Levels go={go} />,
+    <CaseScreen {...props} />,
+    <Choose {...props} />,
+    <Why {...props} />,
+    <Feedback {...props} />,
+    <Reply {...props} />,
+    <Later {...props} />,
+    <Reflect {...props} />,
+    <Commit {...props} />,
+    <Summary {...props} reset={reset} />,
+  ];
+
+  return (
+    <div ref={topRef}>
+      <div className="header-band">
+        <div className="wrap" style={{ paddingBlock: 12 }}>
+          <div className="mx-auto flex items-center justify-between gap-4" style={{ maxWidth: 1180 }}>
+            <button type="button" onClick={() => go(0)} className="flex items-baseline gap-2 text-left">
+              <span className="display" style={{ fontWeight: 800, fontSize: 19 }}>Delegation Lab</span>
+              <span className="hidden md:inline" style={{ fontSize: 13, color: 'var(--muted)' }}>El arte de liderar sin cargarlo todo</span>
+            </button>
+            <div className="flex items-center gap-2">
+              {confirming ? (
+                <div className="flex items-center gap-2 fade-in" role="group" aria-label="Confirmar reinicio">
+                  <span className="hidden sm:inline" style={{ fontSize: 13, color: 'var(--muted)' }}>Se borrarán tus respuestas.</span>
+                  <button type="button" className="btn btn-primary" style={{ padding: '8px 14px', fontSize: 14 }} onClick={hardReset}>Reiniciar</button>
+                  <button type="button" className="btn btn-ghost" style={{ padding: '8px 14px', fontSize: 14 }} onClick={() => setConfirming(false)}>Cancelar</button>
+                </div>
+              ) : (
+                <button type="button" className="btn btn-ghost" style={{ padding: '8px 14px', fontSize: 14 }} onClick={() => setConfirming(true)}>↺ Reiniciar caso</button>
+              )}
+            </div>
+          </div>
+          <div className="mx-auto mt-3" style={{ maxWidth: 1180 }}>
+            <div className="flex gap-1" aria-hidden="true">
+              {STEPS.map((s, i) => (
+                <div key={s.id} style={{ flex: 1, height: 4, borderRadius: 99, background: i <= step ? (i === step ? 'var(--accent)' : 'var(--ink)') : 'var(--line)', transition: 'background .3s' }} />
+              ))}
+            </div>
+            <div className="flex justify-between mt-2 mono" style={{ fontSize: 11, color: 'var(--muted)' }}>
+              <span>PASO {step + 1} DE {STEPS.length} · {STEPS[step].label.toUpperCase()}</span>
+              <span className="hidden sm:inline">{sc.code} · {sc.area.toUpperCase()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <main className="wrap" style={{ paddingBlock: 40 }}>
+        <div className="mx-auto" style={{ maxWidth: 1180 }} key={step}>
+          {screens[step]}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>
